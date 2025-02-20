@@ -25,7 +25,7 @@ export default function Home() {
   return (
     <div className="flex justify-center items-center h-screen w-screen bg-gray-200">
       {/* Main Editor Container */}
-      <div className="w-[98%] h-[98%] bg-gray-300 rounded-lg shadow-lg flex overflow-hidden">
+      <div className="w-[99%] h-[98%] bg-gray-300 rounded-lg shadow-lg flex overflow-hidden">
         {/* Left Panel - Editor */}
         <div className="relative p-4 bg-neutral-900 rounded-r-lg " style={{ width: `${dividerX}%` }}>
           <p className="text-gray-100">Editor Panel</p>
