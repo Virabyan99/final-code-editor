@@ -23,24 +23,27 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-neutral-900 text-white">
-      {/* Left Panel - Editor */}
-      <div className="h-full relative p-4" style={{ width: `${dividerX}%` }}>
-        <p className="text-neutral-400">Editor Panel</p>
-        <Play className="absolute top-2 right-2 opacity-50 hover:opacity-100 cursor-pointer" />
-      </div>
+    <div className="flex justify-center items-center h-screen w-screen bg-gray-200">
+      {/* Main Editor Container */}
+      <div className="w-[98%] h-[98%] bg-gray-300 rounded-lg shadow-lg flex overflow-hidden">
+        {/* Left Panel - Editor */}
+        <div className="relative p-4 bg-neutral-900 rounded-r-lg " style={{ width: `${dividerX}%` }}>
+          <p className="text-gray-100">Editor Panel</p>
+          <Play className="absolute top-2 right-2 opacity-50 hover:opacity-100 cursor-pointer text-gray-100" />
+        </div>
 
-      {/* Draggable Divider */}
-      <div
-        ref={dividerRef}
-        className="w-2 bg-neutral-700 cursor-ew-resize"
-        onMouseDown={handleMouseDown}
-      ></div>
+        {/* Draggable Divider */}
+        <div
+          ref={dividerRef}
+          className="w-2 bg-gray-300  h-[90%] cursor-ew-resize rounded-lg"
+          onMouseDown={handleMouseDown}
+        ></div>
 
-      {/* Right Panel - Console/Reference */}
-      <div className="flex-1 p-4 relative">
-        <p className="text-neutral-400">Console / Reference Panel</p>
-        <Moon className="absolute bottom-2 right-2 opacity-50 hover:opacity-100 cursor-pointer" />
+        {/* Right Panel - Console/Reference */}
+        <div className="flex-1 p-4 bg-neutral-900  relative rounded-l-lg">
+          <p className="text-gray-100">Console / Reference Panel</p>
+          <Moon className="absolute bottom-2 right-2 text-gray-100 opacity-50 hover:opacity-100 cursor-pointer" />
+        </div>
       </div>
     </div>
   );
