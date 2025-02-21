@@ -9,7 +9,7 @@ export default function Home() {
   const dividerRef = useRef<HTMLDivElement>(null);
   const [showConsole, setShowConsole] = useState(false);
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
-  const [aiMessages, setAiMessages] = useState<string[]>([]); // Added for AI explanations
+  const [aiMessages, setAiMessages] = useState<string[]>([]);
 
   // Function to execute code from the editor
   const executeCode = (code: string) => {
@@ -18,7 +18,6 @@ export default function Home() {
     setAiMessages([]); // Clear previous AI messages
 
     try {
-      // Capture console.log, console.warn, and console.error output
       const logs: string[] = [];
       const originalLog = console.log;
       const originalWarn = console.warn;
@@ -37,18 +36,18 @@ export default function Home() {
       console.error = (...args) => {
         const message = args.join(" ");
         logs.push(`❌ Error: ${message}`);
-        const explanation = explainError(message); // Generate AI explanation
+        const explanation = explainError(message); // Simulate AI explanation
         if (explanation) setAiMessages((prev) => [...prev, explanation]);
-        // Do not call originalError to avoid triggering Next.js overlay
+        // Avoid calling originalError to prevent Next.js overlay
       };
 
-      // Execute the JavaScript code inside a try-catch block
+      // Execute the JavaScript code
       (function executeSafely() {
         try {
-          eval(code); // Use eval to execute the code
+          eval(code);
         } catch (error) {
           logs.push(`❌ Error: ${error.message}`);
-          const explanation = explainError(error.message); // Generate AI explanation for caught errors
+          const explanation = explainError(error.message);
           if (explanation) setAiMessages((prev) => [...prev, explanation]);
         }
       })();
@@ -58,7 +57,6 @@ export default function Home() {
       console.warn = originalWarn;
       console.error = originalError;
 
-      // Update the state with captured logs
       setConsoleOutput(logs);
     } catch (error) {
       setConsoleOutput([`❌ Error: ${error.message}`]);
@@ -67,14 +65,18 @@ export default function Home() {
     }
   };
 
-  // Function to generate natural language explanations for errors
+  // Simulate AI-generated explanations (hardcoded for now; replace with Biome/AI integration later)
   const explainError = (message: string) => {
+    // TODO: Integrate Biome or AI API (e.g., xAI's Grok) to dynamically generate these
     if (message.includes("is not defined")) {
       return "🟡 This means you're trying to use a variable that hasn’t been declared.";
-    } else if (message.includes("Unexpected token")) {
+    } else if (message.includes("Invalid or unexpected token")) {
       return "🟡 There’s a syntax error. Check for missing semicolons or brackets.";
     } else if (message.includes("Cannot read properties of undefined")) {
       return "🟡 You’re accessing a property of an undefined object. Ensure it’s defined.";
+    } else if (message.length > 0) {
+      // Catch-all for custom errors like console.error("Hello")
+      return `🟡 This is a custom error message you logged: "${message}"`;
     }
     return ""; // No explanation for unrecognized errors
   };
@@ -99,21 +101,18 @@ export default function Home() {
     <div className="flex justify-center items-center h-screen w-screen bg-gray-200">
       {/* Main Editor Container */}
       <div className="w-[99%] h-[98%] bg-gray-300 rounded-lg shadow-lg flex overflow-hidden">
-        
         {/* Left Panel - Monaco Editor */}
         <div className="relative rounded-r-lg overflow-hidden" style={{ width: `${dividerX}%` }}>
           <CodeEditor onRun={executeCode} />
         </div>
-
         {/* Draggable Divider */}
         <div ref={dividerRef} className="w-2 bg-gray-300 cursor-ew-resize" onMouseDown={handleMouseDown}></div>
-
         {/* Right Panel - Console/Reference */}
         <div className="flex-1 flex flex-col p-4 bg-neutral-900 relative rounded-l-lg">
           {showConsole ? (
             <Console logs={consoleOutput} clearLogs={() => { setConsoleOutput([]); setAiMessages([]); }} aiMessages={aiMessages} />
           ) : (
-            <p className="text-gray-100 text-center">Reference Panel</p> // Keep Reference Panel by default
+            <p className="text-gray-100 text-center">Reference Panel</p>
           )}
           <Moon className="absolute bottom-2 right-2 text-gray-100 opacity-50 hover:opacity-100 cursor-pointer" />
         </div>
