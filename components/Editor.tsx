@@ -15,11 +15,27 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
 
   // Handle Monaco initialization before the editor mounts
   const handleBeforeMount = (monaco: Monaco) => {
-    // Disable squiggly underlines by turning off validation
-    monaco.languages.javascript.javascriptDefaults.setDiagnosticsOptions({
-      noSyntaxValidation: true, // Disable syntax error checking
-      noSemanticValidation: true, // Disable semantic error checking
-    });
+    if (monaco.languages) {
+      // Use the proper way to set the configuration for the JavaScript language
+      const javascript = monaco.languages.getLanguages().find(lang => lang.id === 'javascript');
+      if (javascript) {
+        // Correct way to set configuration for JavaScript
+        monaco.languages.setLanguageConfiguration('javascript', {
+          comments: {
+            lineComment: "//",
+            blockComment: ["/*", "*/"],
+          },
+          autoClosingPairs: [
+            { open: "{", close: "}" },
+            { open: "[", close: "]" },
+            { open: "(", close: ")" },
+          ],
+        });
+      } else {
+        console.error("Monaco JavaScript language features are not loaded.");
+      }
+
+    }
   };
 
   const handleEditorMount: OnMount = (editor) => {
@@ -72,17 +88,18 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
           cursorBlinking: "smooth",
           cursorStyle: "line",
           cursorSmoothCaretAnimation: "on",
-          padding: { top: 46},
+          padding: { top: 46 },
           scrollBeyondLastLine: false,
-          // Disable distractions
           quickSuggestions: false, // Disable auto-suggestions
           suggestOnTriggerCharacters: false, // Disable suggestion triggers
           hover: { enabled: false }, // Disable hover popups
           parameterHints: { enabled: false }, // Disable parameter hints
           contextmenu: false, // Disable right-click context menu
-          
           formatOnType: false, // Disable formatting on type
           formatOnPaste: false, // Disable formatting on paste
+          autoClosingBrackets: "never", // Disable auto-closing brackets
+          autoClosingComments: "never", // Disable auto-closing comments
+          autoClosingQuotes: "never", // Disable auto-closing quotes
         }}
       />
 
