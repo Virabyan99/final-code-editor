@@ -22,9 +22,9 @@ export default function Console({
   return (
     <div className="h-full overflow-clip transition-opacity duration-300">
       <div className="flex justify-between items-center">
-        <p className="text-neutral-400">Console Output</p>
+        <p className="text-neutral-200">Console Output</p>
         <Trash2
-          className="opacity-100 hover:opacity-50 text-gray-100 cursor-pointer"
+          className="opacity-50 hover:opacity-100  text-gray-100 cursor-pointer"
           onClick={() => {
             clearLogs(); // Clears both logs and AI messages via page.tsx
           }}

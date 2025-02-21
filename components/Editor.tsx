@@ -39,6 +39,17 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
         }
       }
     });
+
+    // Remove placeholder text on click (when cursor position changes)
+    editor.onDidChangeCursorPosition(() => {
+      if (!isPlaceholderRemoved) {
+        const currentValue = editor.getValue();
+        if (currentValue === "console.log('Hello World');") { // Exact match to avoid clearing partial edits
+          editor.setValue(""); // Clear placeholder on click
+          setIsPlaceholderRemoved(true);
+        }
+      }
+    });
   };
 
   // Function to execute code when "Run" is clicked
@@ -89,9 +100,9 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
       {/* "Run" Button (Play Icon) */}
       <button
         onClick={runCode}
-        className="absolute top-2 right-2 bg-gray-700 text-white px-2 py-1 rounded-md text-sm opacity-50 hover:opacity-100 cursor-pointer"
+        className="absolute top-1 right-2 size-12 text-white px-2  text-xl opacity-50 hover:opacity-100 cursor-pointer"
       >
-        Run ▶
+        ▶
       </button>
     </div>
   );

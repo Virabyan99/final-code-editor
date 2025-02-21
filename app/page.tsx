@@ -112,7 +112,7 @@ export default function Home() {
           {showConsole ? (
             <Console logs={consoleOutput} clearLogs={() => { setConsoleOutput([]); setAiMessages([]); }} aiMessages={aiMessages} />
           ) : (
-            <p className="text-gray-100 text-center">Reference Panel</p>
+            <p className="text-gray-100 ">Reference Panel</p>
           )}
           <Moon className="absolute bottom-2 right-2 text-gray-100 opacity-50 hover:opacity-100 cursor-pointer" />
         </div>
