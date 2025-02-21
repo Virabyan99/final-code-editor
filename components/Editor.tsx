@@ -41,6 +41,14 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
     });
   };
 
+  // Function to execute code when "Run" is clicked
+  const runCode = () => {
+    if (monacoRef.current) {
+      const code = monacoRef.current.getValue();
+      onRun(code); // Send code to Console Panel
+    }
+  };
+
   return (
     <div className="relative h-full w-full">
       <Editor
@@ -80,15 +88,10 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
 
       {/* "Run" Button (Play Icon) */}
       <button
-        onClick={() => {
-          if (monacoRef.current) {
-            onRun(monacoRef.current.getValue()); // Execute the code when button is clicked
-          }
-        }}
+        onClick={runCode}
+        className="absolute top-2 right-2 bg-gray-700 text-white px-2 py-1 rounded-md text-sm opacity-50 hover:opacity-100 cursor-pointer"
       >
-        <Play
-          className="absolute top-2 right-2 opacity-50 hover:opacity-100 cursor-pointer text-gray-100"
-        />
+        Run ▶
       </button>
     </div>
   );
