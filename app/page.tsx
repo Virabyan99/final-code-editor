@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Play, Trash2, Moon } from "lucide-react";
 import CodeEditor from "@/components/Editor";
 import Console from "@/components/Console";
@@ -9,66 +8,64 @@ export default function Home() {
   const [dividerX, setDividerX] = useState(50);
   const dividerRef = useRef<HTMLDivElement>(null);
   const [showConsole, setShowConsole] = useState(false);
-  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
+  const [consoleOutput, setConsoleOutput] = useState<{ type: string; message: any[] }[]>([]);
   const [aiMessages, setAiMessages] = useState<string[]>([]);
+  const [worker, setWorker] = useState<Worker | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    // Create Web Worker
+    const newWorker = new Worker(new URL("../public/worker.ts", import.meta.url), { type: "module" });
+
+    newWorker.onmessage = (event) => {
+      const { type, message } = event.data;
+      if (type === "clear") {
+        setConsoleOutput([]);
+        setAiMessages([]);
+      } else {
+        setConsoleOutput((prev) => [...prev, { type, message }]);
+        if (type === "error") {
+          const explanation = explainError(message.join(" "));
+          if (explanation) setAiMessages((prev) => [...prev, explanation]);
+        }
+      }
+    };
+
+    setWorker(newWorker);
+    return () => newWorker.terminate();
+  }, []);
+
+  useEffect(() => {
+    // Listen for messages from the Iframe
+    const handleIframeMessage = (event) => {
+      if (event.data?.type === "log") {
+        setConsoleOutput((prev) => [...prev, { type: "log", message: [event.data.message] }]);
+      } else if (event.data?.type === "error") {
+        setConsoleOutput((prev) => [...prev, { type: "error", message: [event.data.message] }]);
+        const explanation = explainError(event.data.message);
+        if (explanation) setAiMessages((prev) => [...prev, explanation]);
+      }
+    };
+
+    window.addEventListener("message", handleIframeMessage);
+    return () => window.removeEventListener("message", handleIframeMessage);
+  }, []);
 
   // Function to execute code from the editor
   const executeCode = (code: string) => {
     setShowConsole(true); // Show console panel when "Run" is clicked
-    setConsoleOutput([]); // Clear previous logs
-    setAiMessages([]); // Clear previous AI messages
 
-    try {
-      const logs: string[] = [];
-      const originalLog = console.log;
-      const originalWarn = console.warn;
-      const originalError = console.error;
-
-      console.log = (...args) => {
-        logs.push(args.join(" "));
-        originalLog(...args);
-      };
-
-      console.warn = (...args) => {
-        logs.push(`⚠️ Warning: ${args.join(" ")}`);
-        originalWarn(...args);
-      };
-
-      console.error = (...args) => {
-        const message = args.join(" ");
-        logs.push(`❌ Error: ${message}`);
-        const explanation = explainError(message); // Simulate AI explanation
-        if (explanation) setAiMessages((prev) => [...prev, explanation]);
-        // Avoid calling originalError to prevent Next.js overlay
-      };
-
-      // Execute the JavaScript code
-      (function executeSafely() {
-        try {
-          eval(code);
-        } catch (error) {
-          logs.push(`❌ Error: ${error.message}`);
-          const explanation = explainError(error.message);
-          if (explanation) setAiMessages((prev) => [...prev, explanation]);
-        }
-      })();
-
-      // Restore console methods
-      console.log = originalLog;
-      console.warn = originalWarn;
-      console.error = originalError;
-
-      setConsoleOutput(logs);
-    } catch (error) {
-      setConsoleOutput([`❌ Error: ${error.message}`]);
-      const explanation = explainError(error.message);
-      if (explanation) setAiMessages((prev) => [...prev, explanation]);
+    if (code.includes("document") || code.includes("window")) {
+      // Send to Iframe if it needs DOM access
+      iframeRef.current?.contentWindow?.postMessage({ type: "execute", code }, "*");
+    } else {
+      // Otherwise, execute securely in the Web Worker
+      worker?.postMessage(code);
     }
   };
 
-  // Simulate AI-generated explanations (hardcoded for now; replace with Biome/AI integration later)
+  // Simulate AI-generated explanations (hardcoded for now)
   const explainError = (message: string) => {
-    // TODO: Integrate Biome or AI API (e.g., xAI's Grok) to dynamically generate these
     if (message.includes("is not defined")) {
       return "🟡 This means you're trying to use a variable that hasn’t been declared.";
     } else if (message.includes("Invalid or unexpected token")) {
@@ -76,10 +73,9 @@ export default function Home() {
     } else if (message.includes("Cannot read properties of undefined")) {
       return "🟡 You’re accessing a property of an undefined object. Ensure it’s defined.";
     } else if (message.length > 0) {
-      // Catch-all for custom errors like console.error("Hello")
       return `🟡 This is a custom error message you logged: "${message}"`;
     }
-    return ""; // No explanation for unrecognized errors
+    return "";
   };
 
   // Handle dragging of the divider
@@ -113,9 +109,11 @@ export default function Home() {
           {showConsole ? (
             <Console logs={consoleOutput} clearLogs={() => { setConsoleOutput([]); setAiMessages([]); }} aiMessages={aiMessages} />
           ) : (
-            <p className="text-gray-100 ">Reference Panel</p>
+            <p className="text-gray-100">Reference Panel</p>
           )}
           <Moon className="absolute bottom-2 right-2 text-gray-100 opacity-50 hover:opacity-100 cursor-pointer" />
+          {/* Hidden Iframe for DOM execution */}
+          <iframe ref={iframeRef} src="/sandbox.html" style={{ display: "none" }} />
         </div>
       </div>
     </div>

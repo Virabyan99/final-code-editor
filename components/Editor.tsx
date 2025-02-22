@@ -16,10 +16,8 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
   // Handle Monaco initialization before the editor mounts
   const handleBeforeMount = (monaco: Monaco) => {
     if (monaco.languages) {
-      // Use the proper way to set the configuration for the JavaScript language
       const javascript = monaco.languages.getLanguages().find(lang => lang.id === 'javascript');
       if (javascript) {
-        // Correct way to set configuration for JavaScript
         monaco.languages.setLanguageConfiguration('javascript', {
           comments: {
             lineComment: "//",
@@ -34,24 +32,20 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
       } else {
         console.error("Monaco JavaScript language features are not loaded.");
       }
-
     }
   };
 
   const handleEditorMount: OnMount = (editor) => {
     monacoRef.current = editor;
     setEditorMounted(true);
-
-    // Focus editor automatically on load and set cursor at start
     editor.focus();
-    editor.setPosition({ lineNumber: 1, column: 1 }); // Explicitly set cursor to start
+    editor.setPosition({ lineNumber: 1, column: 1 });
   };
 
-  // Function to execute code when "Run" is clicked
   const runCode = () => {
     if (monacoRef.current) {
       const code = monacoRef.current.getValue();
-      onRun(code); // Send code to Console Panel
+      onRun(code);
     }
   };
 
@@ -62,8 +56,8 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
         width="100%"
         theme="vs-dark"
         defaultLanguage="javascript"
-        defaultValue="" // Empty editor, no placeholder
-        beforeMount={handleBeforeMount} // Run before editor mounts to configure diagnostics
+        defaultValue=""
+        beforeMount={handleBeforeMount}
         onMount={handleEditorMount}
         options={{
           automaticLayout: true,
@@ -82,7 +76,7 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
           overviewRulerLanes: 0,
           renderLineHighlight: "none",
           guides: { indentation: false },
-          folding: false, // Disable code folding
+          folding: false,
           wordWrap: "on",
           smoothScrolling: true,
           cursorBlinking: "smooth",
@@ -90,20 +84,19 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
           cursorSmoothCaretAnimation: "on",
           padding: { top: 46 },
           scrollBeyondLastLine: false,
-          quickSuggestions: false, // Disable auto-suggestions
-          suggestOnTriggerCharacters: false, // Disable suggestion triggers
-          hover: { enabled: false }, // Disable hover popups
-          parameterHints: { enabled: false }, // Disable parameter hints
-          contextmenu: false, // Disable right-click context menu
-          formatOnType: false, // Disable formatting on type
-          formatOnPaste: false, // Disable formatting on paste
-          autoClosingBrackets: "never", // Disable auto-closing brackets
-          autoClosingComments: "never", // Disable auto-closing comments
-          autoClosingQuotes: "never", // Disable auto-closing quotes
+          quickSuggestions: false,
+          suggestOnTriggerCharacters: false,
+          hover: { enabled: false },
+          parameterHints: { enabled: false },
+          contextmenu: false,
+          formatOnType: false,
+          formatOnPaste: false,
+          autoClosingBrackets: "never",
+          autoClosingComments: "never",
+          autoClosingQuotes: "never",
+          
         }}
       />
-
-      {/* "Run" Button (Play Icon) */}
       <button
         onClick={runCode}
         className="absolute top-1 right-2 size-12 text-white px-2 text-xl opacity-50 hover:opacity-100 cursor-pointer"
