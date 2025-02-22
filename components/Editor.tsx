@@ -14,8 +14,44 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
 
   // Handle Monaco initialization before the editor mounts
   const handleBeforeMount = (monaco: Monaco) => {
+    // Define the plain theme to set all text, including symbols, to white
+    monaco.editor.defineTheme('plain', {
+      base: 'vs-dark', // Base theme for background reference
+      inherit: false, // Do not inherit any default rules
+      rules: [
+        // Specific token rules first
+        { token: 'delimiter.curly', foreground: 'ffffff' }, // { }
+        { token: 'delimiter.parenthesis', foreground: 'ffffff' }, // ( )
+        { token: 'delimiter.bracket', foreground: 'ffffff' }, // [ ]
+        { token: 'delimiter', foreground: 'ffffff' }, // General delimiters
+        { token: 'punctuation', foreground: 'ffffff' }, // Commas, semicolons
+        { token: 'operator', foreground: 'ffffff' }, // +, -, *, /
+        { token: 'keyword', foreground: 'ffffff' }, // if, else, etc.
+        { token: 'string', foreground: 'ffffff' }, // Strings
+        { token: 'number', foreground: 'ffffff' }, // Numbers
+        { token: 'comment', foreground: 'ffffff' }, // Comments
+        { token: 'variable', foreground: 'ffffff' }, // Variables
+        { token: 'identifier', foreground: 'ffffff' }, // Identifiers
+        { token: 'function', foreground: 'ffffff' }, // Functions
+        { token: '', foreground: 'ffffff' }, // Catch-all rule at the end
+      ],
+      colors: {
+        'editor.background': '#1e1e1e',               // Dark background
+        'editor.foreground': '#ffffff',               // Default text color
+        'editorCursor.foreground': '#ffffff',         // White cursor
+        'editor.lineHighlightBackground': '#ffffff0f', // Subtle line highlight
+        'editor.selectionBackground': '#ffffff33',    // Selection highlight
+        'editorBracketMatch.background': '#ffffff00', // No background for brackets
+        'editorBracketMatch.border': '#ffffff00',     // No border for brackets
+      }
+    });
+
+    // Apply the custom theme
+    monaco.editor.setTheme('plain');
+
+    // Existing language configuration
     if (monaco.languages) {
-      const javascript = monaco.languages.getLanguages().find(lang => lang.id === 'javascript');
+      const javascript = monaco.languages.getLanguages().find((lang) => lang.id === 'javascript');
       if (javascript) {
         monaco.languages.setLanguageConfiguration('javascript', {
           comments: {
@@ -38,9 +74,10 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
     monacoRef.current = editor;
     setEditorMounted(true);
     editor.focus();
-    editor.setPosition({ lineNumber: 1, column: 1 });
+    editor.setPosition({ lineNumber: 1, column: 1 }); // Explicitly set cursor to start
   };
 
+  // Function to execute code when "Run" is clicked
   const runCode = () => {
     if (monacoRef.current) {
       const code = monacoRef.current.getValue();
@@ -53,25 +90,29 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
       <Editor
         height="100vh"
         width="100%"
-        theme="vs-dark"
+        theme="plain" // Use the custom theme
         defaultLanguage="javascript"
         defaultValue=""
+        
         beforeMount={handleBeforeMount}
         onMount={handleEditorMount}
         options={{
           automaticLayout: true,
           fontSize: 14,
-          fontFamily: "Fira Code, monospace",
+          fontFamily: "Fira Code",
           lineHeight: 28.4,
           lineNumbers: "off",
           minimap: { enabled: false },
+          colorDecorators: false,
+          defaultColorDecorators: false,
+          bracketPairColorization: { enabled: false }, // Disable bracket colorization
+          colorDecoratorsLimit: 0,
           scrollbar: {
             vertical: "visible",
             horizontal: "auto",
             verticalScrollbarSize: 14,
             horizontalScrollbarSize: 8,
             useShadows: false,
-            
           },
           overviewRulerLanes: 0,
           renderLineHighlight: "none",
@@ -97,7 +138,7 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
           autoIndent: "none",
           autoSurround: "never",
           autoClosingDelete: "never",
-          renderValidationDecorations: "off",
+          renderValidationDecorations: "off", // Disable syntax error underlines
         }}
       />
       <button

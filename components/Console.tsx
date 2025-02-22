@@ -33,7 +33,7 @@ export default function Console({
             key={index}
             className={`text-[14px] ${
               entry.type === "error"
-                ? "text-red-500"
+                ? "bg-red-700 text-gray-100 ml-2"
                 : entry.type === "warn"
                 ? "text-yellow-400"
                 : entry.type === "info"
@@ -53,7 +53,7 @@ export default function Console({
           </div>
         ))}
         {aiMessages.map((msg, index) => (
-          <p key={index} className="text-blue-300 text-[14px]">{msg}</p>
+          <p key={index} className="text-gray-100 text-[14px]">{msg}</p>
         ))}
       </div>
     </div>
