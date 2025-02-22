@@ -10,10 +10,10 @@
     window.addEventListener("message", async (event) => {
       if (event.data?.type === "execute") {
         try {
-          const result = eval(event.data.code);
-          event.source.postMessage({ type: "log", message: [result] }, "*");
+          const result = await new Function(`return (async () => { ${event.data.code} })()`)();
+          event.source.postMessage({ type: "log", message: result }, "*");
         } catch (error) {
-          event.source.postMessage({ type: "error", message: [error.message] }, "*");
+          event.source.postMessage({ type: "error", message: error.message }, "*");
         }
       }
     });
