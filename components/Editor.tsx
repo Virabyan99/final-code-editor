@@ -1,7 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import Editor, { OnMount, Monaco } from "@monaco-editor/react";
 import type * as monaco from "monaco-editor";
-import { Play } from "lucide-react";
 
 export default function CodeEditor({ onRun }: { onRun: (code: string) => void }) {
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -72,6 +71,7 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
             verticalScrollbarSize: 14,
             horizontalScrollbarSize: 8,
             useShadows: false,
+            
           },
           overviewRulerLanes: 0,
           renderLineHighlight: "none",
@@ -94,7 +94,10 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
           autoClosingBrackets: "never",
           autoClosingComments: "never",
           autoClosingQuotes: "never",
-          
+          autoIndent: "none",
+          autoSurround: "never",
+          autoClosingDelete: "never",
+          renderValidationDecorations: "off",
         }}
       />
       <button
