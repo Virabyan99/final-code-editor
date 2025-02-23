@@ -75,13 +75,15 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
 
     let timeout: NodeJS.Timeout | null = null;
 
-    // Save on user type (only for user-typed changes)
-    editor.onDidType(() => {
-      const code = editor.getValue().trim();
+    // Save on user change with idle detection and semicolon press
+    editor.onDidChangeModelContent(() => {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => {
-        if (/[;}]\s*$/.test(code) && code.length > 0 && code !== lastSavedCode) {
-          console.log("Saving breakpoint:", code);
+        const code = editor.getValue().trim();
+
+        // Check if the last character is a semicolon or closing brace
+        if ((/[;}]\s*$/.test(code) || code.endsWith("}")) && code !== lastSavedCode) {
+          console.log("Saving breakpoint after idle:", code);
           saveBreakpoint(code)
             .then(() => {
               setHistory((prev) => {
@@ -96,7 +98,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
               console.error("Failed to save breakpoint:", error);
             });
         }
-      }, 500); // Debounce for 500ms
+      }, 1000); // Save after 1 second of idle time
     });
 
     // Detect content changes for console panel visibility
@@ -170,9 +172,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
           lineNumbers: "off",
           minimap: { enabled: false },
           colorDecorators: false,
-          defaultColorDecorators: false,
           bracketPairColorization: { enabled: false },
-          colorDecoratorsLimit: 0,
           scrollbar: {
             vertical: "visible",
             horizontal: "auto",

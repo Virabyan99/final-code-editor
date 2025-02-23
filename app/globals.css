@@ -7,6 +7,17 @@ body {
   margin: 0;
 }
 
+.line-marker::after {
+  content: "↵";
+  color: white;
+  font-size: 18px;
+  pointer-events: none;
+  user-select: none;
+  margin-left: 5px;
+  animation: blink 1s infinite;
+}
+
+
 @layer base {
   :root {
     --background: 0 0% 100%;
