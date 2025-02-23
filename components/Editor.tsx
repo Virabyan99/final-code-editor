@@ -4,7 +4,7 @@ import type * as monaco from "monaco-editor";
 import { saveBreakpoint, getBreakpoints } from "@/utils/historyDB";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function CodeEditor({ onRun }: { onRun: (code: string) => void }) {
+export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: string) => void; onContentChanged: () => void }) {
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [editorMounted, setEditorMounted] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -99,9 +99,9 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
       }, 500); // Debounce for 500ms
     });
 
-    // Keep onDidChangeModelContent for other purposes, but no save
+    // Detect content changes for console panel visibility
     editor.onDidChangeModelContent(() => {
-      console.log("Content changed, not saving (navigation or other changes)");
+      onContentChanged(); // Notify parent to hide console panel on user edit
     });
   };
 
@@ -140,16 +140,16 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
     <div className="relative h-full w-full">
       <div className="absolute top-1 left-2 flex space-x-2">
         <button
-          onClick={ handleNavigateForward}
+          onClick={handleNavigateBack}
           className="size-12 text-white px-2 text-xl z-30 opacity-50 hover:opacity-100 cursor-pointer"
-          disabled={currentIndex >= history.length}
+          disabled={currentIndex <= 0}
         >
           <ChevronLeft />
         </button>
         <button
-          onClick={handleNavigateBack}
+          onClick={handleNavigateForward}
           className="size-12 text-white px-2 text-xl z-30 opacity-50 hover:opacity-100 cursor-pointer"
-          disabled={currentIndex <= 0}
+          disabled={currentIndex >= history.length}
         >
           <ChevronRight />
         </button>

@@ -12,6 +12,16 @@ export default function Home() {
   const [aiMessages, setAiMessages] = useState<string[]>([]);
   const [worker, setWorker] = useState<Worker | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [previousShowConsole, setPreviousShowConsole] = useState(false);
+
+  // Clear console output when switching from console to reference mode
+  useEffect(() => {
+    if (!showConsole && previousShowConsole) {
+      setConsoleOutput([]); // Clear console output when user starts typing
+      setAiMessages([]); // Clear AI messages as well
+    }
+    setPreviousShowConsole(showConsole);
+  }, [showConsole]);
 
   useEffect(() => {
     // Create Web Worker (corrected path to public/worker.js)
@@ -20,8 +30,8 @@ export default function Home() {
     newWorker.onmessage = (event) => {
       const { type, message } = event.data;
       if (type === "clear") {
-        setConsoleOutput([]);
-        setAiMessages([]);
+        setConsoleOutput([]); // Clear console output on console.clear()
+        setAiMessages([]); // Clear AI messages
       } else {
         setConsoleOutput((prev) => [...prev, { type, message }]);
         if (type === "error") {
@@ -100,7 +110,7 @@ export default function Home() {
       <div className="w-[99%] h-[98%] bg-gray-300 rounded-lg shadow-lg flex overflow-hidden">
         {/* Left Panel - Monaco Editor */}
         <div className="relative rounded-r-lg overflow-hidden" style={{ width: `${dividerX}%` }}>
-          <CodeEditor onRun={executeCode} />
+          <CodeEditor onRun={executeCode} onContentChanged={() => setShowConsole(false)} />
         </div>
         {/* Draggable Divider */}
         <div ref={dividerRef} className="w-2 bg-gray-300 cursor-ew-resize" onMouseDown={handleMouseDown}></div>
