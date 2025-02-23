@@ -14,7 +14,7 @@ export default function Home() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
-    // Create Web Worker
+    // Create Web Worker (corrected path to public/worker.js)
     const newWorker = new Worker(new URL("../public/worker.ts", import.meta.url), { type: "module" });
 
     newWorker.onmessage = (event) => {
@@ -42,7 +42,7 @@ export default function Home() {
         setConsoleOutput((prev) => [...prev, { type: "log", message: [event.data.message] }]);
       } else if (event.data?.type === "error") {
         setConsoleOutput((prev) => [...prev, { type: "error", message: [event.data.message] }]);
-        const explanation = explainError(event.data.message);
+        const explanation = explainError(event.data.message.join(" "));
         if (explanation) setAiMessages((prev) => [...prev, explanation]);
       }
     };

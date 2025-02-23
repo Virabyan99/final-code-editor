@@ -1,10 +1,15 @@
 import { useRef, useEffect, useState } from "react";
 import Editor, { OnMount, Monaco } from "@monaco-editor/react";
 import type * as monaco from "monaco-editor";
+import { saveBreakpoint, getBreakpoints } from "@/utils/historyDB";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function CodeEditor({ onRun }: { onRun: (code: string) => void }) {
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [editorMounted, setEditorMounted] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const [lastSavedCode, setLastSavedCode] = useState<string>("");
 
   useEffect(() => {
     if (editorMounted && monacoRef.current) {
@@ -12,72 +17,118 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
     }
   }, [editorMounted]);
 
-  // Handle Monaco initialization before the editor mounts
-  const handleBeforeMount = (monaco: Monaco) => {
-    // Define the plain theme to set all text, including symbols, to white
-    monaco.editor.defineTheme('plain', {
-      base: 'vs-dark', // Base theme for background reference
-      inherit: false, // Do not inherit any default rules
-      rules: [
-        // Specific token rules first
-        { token: 'delimiter.curly', foreground: 'ffffff' }, // { }
-        { token: 'delimiter.parenthesis', foreground: 'ffffff' }, // ( )
-        { token: 'delimiter.bracket', foreground: 'ffffff' }, // [ ]
-        { token: 'delimiter', foreground: 'ffffff' }, // General delimiters
-        { token: 'punctuation', foreground: 'ffffff' }, // Commas, semicolons
-        { token: 'operator', foreground: 'ffffff' }, // +, -, *, /
-        { token: 'keyword', foreground: 'ffffff' }, // if, else, etc.
-        { token: 'string', foreground: 'ffffff' }, // Strings
-        { token: 'number', foreground: 'ffffff' }, // Numbers
-        { token: 'comment', foreground: 'ffffff' }, // Comments
-        { token: 'variable', foreground: 'ffffff' }, // Variables
-        { token: 'identifier', foreground: 'ffffff' }, // Identifiers
-        { token: 'function', foreground: 'ffffff' }, // Functions
-        { token: '', foreground: 'ffffff' }, // Catch-all rule at the end
-      ],
-      colors: {
-        'editor.background': '#1e1e1e',               // Dark background
-        'editor.foreground': '#ffffff',               // Default text color
-        'editorCursor.foreground': '#ffffff',         // White cursor
-        'editor.lineHighlightBackground': '#ffffff0f', // Subtle line highlight
-        'editor.selectionBackground': '#ffffff33',    // Selection highlight
-        'editorBracketMatch.background': '#ffffff00', // No background for brackets
-        'editorBracketMatch.border': '#ffffff00',     // No border for brackets
-      }
-    });
-
-    // Apply the custom theme
-    monaco.editor.setTheme('plain');
-
-    // Existing language configuration
-    if (monaco.languages) {
-      const javascript = monaco.languages.getLanguages().find((lang) => lang.id === 'javascript');
-      if (javascript) {
-        monaco.languages.setLanguageConfiguration('javascript', {
-          comments: {
-            lineComment: "//",
-            blockComment: ["/*", "*/"],
-          },
-          autoClosingPairs: [
-            { open: "{", close: "}" },
-            { open: "[", close: "]" },
-            { open: "(", close: ")" },
-          ],
-        });
-      } else {
-        console.error("Monaco JavaScript language features are not loaded.");
+  // Load history from IndexedDB on mount
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const breakpoints = await getBreakpoints();
+        const historyArray = breakpoints.map((entry) => entry.code);
+        console.log("Loaded history from IndexedDB:", historyArray);
+        setHistory(historyArray);
+        setCurrentIndex(-1); // Start with a blank editor
+      } catch (error) {
+        console.error("Failed to load history from IndexedDB:", error);
       }
     }
+    loadHistory();
+  }, []);
+
+  // Handle Monaco initialization before the editor mounts
+  const handleBeforeMount = (monaco: Monaco) => {
+    monaco.editor.defineTheme("plain", {
+      base: "vs-dark",
+      inherit: false,
+      rules: [
+        { token: "delimiter.curly", foreground: "ffffff" },
+        { token: "delimiter.parenthesis", foreground: "ffffff" },
+        { token: "delimiter.bracket", foreground: "ffffff" },
+        { token: "delimiter", foreground: "ffffff" },
+        { token: "punctuation", foreground: "ffffff" },
+        { token: "operator", foreground: "ffffff" },
+        { token: "keyword", foreground: "ffffff" },
+        { token: "string", foreground: "ffffff" },
+        { token: "number", foreground: "ffffff" },
+        { token: "comment", foreground: "ffffff" },
+        { token: "variable", foreground: "ffffff" },
+        { token: "identifier", foreground: "ffffff" },
+        { token: "function", foreground: "ffffff" },
+        { token: "", foreground: "ffffff" },
+      ],
+      colors: {
+        "editor.background": "#1e1e1e",
+        "editor.foreground": "#ffffff",
+        "editorCursor.foreground": "#ffffff",
+        "editor.lineHighlightBackground": "#ffffff0f",
+        "editor.selectionBackground": "#ffffff33",
+        "editorBracketMatch.background": "#ffffff00",
+        "editorBracketMatch.border": "#ffffff00",
+      },
+    });
+    monaco.editor.setTheme("plain");
   };
 
-  const handleEditorMount: OnMount = (editor) => {
+  const handleEditorMount: OnMount = (editor, monaco) => {
     monacoRef.current = editor;
     setEditorMounted(true);
     editor.focus();
-    editor.setPosition({ lineNumber: 1, column: 1 }); // Explicitly set cursor to start
+    editor.setPosition({ lineNumber: 1, column: 1 });
+
+    let timeout: NodeJS.Timeout | null = null;
+
+    // Save on user type (only for user-typed changes)
+    editor.onDidType(() => {
+      const code = editor.getValue().trim();
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        if (/[;}]\s*$/.test(code) && code.length > 0 && code !== lastSavedCode) {
+          console.log("Saving breakpoint:", code);
+          saveBreakpoint(code)
+            .then(() => {
+              setHistory((prev) => {
+                const newHistory = [...prev, code];
+                console.log("Updated history:", newHistory);
+                setLastSavedCode(code);
+                setCurrentIndex(newHistory.length - 1); // Point to the latest entry
+                return newHistory;
+              });
+            })
+            .catch((error) => {
+              console.error("Failed to save breakpoint:", error);
+            });
+        }
+      }, 500); // Debounce for 500ms
+    });
+
+    // Keep onDidChangeModelContent for other purposes, but no save
+    editor.onDidChangeModelContent(() => {
+      console.log("Content changed, not saving (navigation or other changes)");
+    });
   };
 
-  // Function to execute code when "Run" is clicked
+  // Navigate backward in history
+  const handleNavigateBack = () => {
+    if (currentIndex > 0 && monacoRef.current) {
+      console.log("Navigating back to index:", currentIndex - 1);
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      monacoRef.current.setValue(history[newIndex]);
+    }
+  };
+
+  // Navigate forward in history
+  const handleNavigateForward = () => {
+    if (currentIndex < history.length - 1 && monacoRef.current) {
+      console.log("Navigating forward to index:", currentIndex + 1);
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      monacoRef.current.setValue(history[newIndex]);
+    } else if (currentIndex === history.length - 1 && monacoRef.current) {
+      console.log("At latest history, clearing editor");
+      setCurrentIndex(history.length);
+      monacoRef.current.setValue("");
+    }
+  };
+
   const runCode = () => {
     if (monacoRef.current) {
       const code = monacoRef.current.getValue();
@@ -87,13 +138,28 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
 
   return (
     <div className="relative h-full w-full">
+      <div className="absolute top-1 left-2 flex space-x-2">
+        <button
+          onClick={ handleNavigateForward}
+          className="size-12 text-white px-2 text-xl z-30 opacity-50 hover:opacity-100 cursor-pointer"
+          disabled={currentIndex >= history.length}
+        >
+          <ChevronLeft />
+        </button>
+        <button
+          onClick={handleNavigateBack}
+          className="size-12 text-white px-2 text-xl z-30 opacity-50 hover:opacity-100 cursor-pointer"
+          disabled={currentIndex <= 0}
+        >
+          <ChevronRight />
+        </button>
+      </div>
       <Editor
         height="100vh"
         width="100%"
-        theme="plain" // Use the custom theme
+        theme="plain"
         defaultLanguage="javascript"
         defaultValue=""
-        
         beforeMount={handleBeforeMount}
         onMount={handleEditorMount}
         options={{
@@ -105,7 +171,7 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
           minimap: { enabled: false },
           colorDecorators: false,
           defaultColorDecorators: false,
-          bracketPairColorization: { enabled: false }, // Disable bracket colorization
+          bracketPairColorization: { enabled: false },
           colorDecoratorsLimit: 0,
           scrollbar: {
             vertical: "visible",
@@ -138,7 +204,7 @@ export default function CodeEditor({ onRun }: { onRun: (code: string) => void })
           autoIndent: "none",
           autoSurround: "never",
           autoClosingDelete: "never",
-          renderValidationDecorations: "off", // Disable syntax error underlines
+          renderValidationDecorations: "off",
         }}
       />
       <button
