@@ -1,9 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import CodeEditor from "@/components/Editor";
+import dynamic from "next/dynamic";
 import ReferencePanel from "@/components/ReferencePanel";
 import { Play, Trash2, Moon } from "lucide-react";
 import Console from "@/components/Console";
+
+// Dynamically import Editor to bypass server-side rendering
+const CodeEditor = dynamic(() => import("@/components/Editor"), { ssr: false });
 
 export default function Home() {
   const [dividerX, setDividerX] = useState(50);
@@ -20,21 +23,23 @@ export default function Home() {
   // Clear console output when switching from console to reference mode
   useEffect(() => {
     if (!showConsole && previousShowConsole) {
-      setConsoleOutput([]); // Clear console output when user starts typing
-      setAiMessages([]); // Clear AI messages as well
+      setConsoleOutput([]);
+      setAiMessages([]);
     }
     setPreviousShowConsole(showConsole);
   }, [showConsole]);
 
+  // Initialize Worker and Iframe listener only on client-side
   useEffect(() => {
+    if (typeof window === "undefined") return; // Skip on server
+
     // Create Web Worker
     const newWorker = new Worker(new URL("../public/worker.ts", import.meta.url), { type: "module" });
-
     newWorker.onmessage = (event) => {
       const { type, message } = event.data;
       if (type === "clear") {
-        setConsoleOutput([]); // Clear console output on console.clear()
-        setAiMessages([]); // Clear AI messages
+        setConsoleOutput([]);
+        setAiMessages([]);
       } else {
         setConsoleOutput((prev) => [...prev, { type, message }]);
         if (type === "error") {
@@ -43,14 +48,10 @@ export default function Home() {
         }
       }
     };
-
     setWorker(newWorker);
-    return () => newWorker.terminate();
-  }, []);
 
-  useEffect(() => {
     // Listen for messages from the Iframe
-    const handleIframeMessage = (event) => {
+    const handleIframeMessage = (event: MessageEvent) => {
       if (event.data?.type === "log") {
         setConsoleOutput((prev) => [...prev, { type: "log", message: [event.data.message] }]);
       } else if (event.data?.type === "error") {
@@ -59,9 +60,12 @@ export default function Home() {
         if (explanation) setAiMessages((prev) => [...prev, explanation]);
       }
     };
-
     window.addEventListener("message", handleIframeMessage);
-    return () => window.removeEventListener("message", handleIframeMessage);
+
+    return () => {
+      newWorker.terminate();
+      window.removeEventListener("message", handleIframeMessage);
+    };
   }, []);
 
   // Function to execute code from the editor
@@ -76,12 +80,11 @@ export default function Home() {
 
   const applyAllFixes = (newCode: string) => {
     if (codeEditorRef.current) {
-      codeEditorRef.current.setCode(newCode); // Update editor with AI-formatted code
-      setUserCode(newCode); // Sync state
+      codeEditorRef.current.setCode(newCode);
+      setUserCode(newCode);
     }
   };
 
-  // Simulate AI-generated explanations (hardcoded for now)
   const explainError = (message: string) => {
     if (message.includes("is not defined")) {
       return "🟡 This means you're trying to use a variable that hasn’t been declared.";
@@ -97,16 +100,18 @@ export default function Home() {
 
   // Handle dragging of the divider
   const handleMouseMove = (e: MouseEvent) => {
-    if (!dividerRef.current) return;
+    if (!dividerRef.current || typeof window === "undefined") return;
     setDividerX((e.clientX / window.innerWidth) * 100);
   };
 
   const handleMouseUp = () => {
+    if (typeof window === "undefined") return;
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
   };
 
   const handleMouseDown = () => {
+    if (typeof window === "undefined") return;
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
   };
@@ -115,9 +120,9 @@ export default function Home() {
     <div className="flex justify-center items-center h-screen w-screen bg-gray-200">
       <div className="w-[99%] h-[98%] bg-gray-300 rounded-lg shadow-lg flex overflow-hidden">
         <div className="relative rounded-r-lg overflow-hidden" style={{ width: `${dividerX}%` }}>
-          <CodeEditor 
-            onRun={executeCode} 
-            onContentChanged={() => setShowConsole(false)} 
+          <CodeEditor
+            onRun={executeCode}
+            onContentChanged={() => setShowConsole(false)}
             onCodeChange={(code) => setUserCode(code)}
             ref={codeEditorRef}
           />
@@ -127,10 +132,7 @@ export default function Home() {
           {showConsole ? (
             <Console logs={consoleOutput} clearLogs={() => { setConsoleOutput([]); setAiMessages([]); }} aiMessages={aiMessages} />
           ) : (
-            <ReferencePanel 
-              userCode={userCode} 
-              onApplyAllFixes={applyAllFixes} // Pass updated callback
-            />
+            <ReferencePanel userCode={userCode} onApplyAllFixes={applyAllFixes} />
           )}
           <Moon className="absolute bottom-2 right-2 text-gray-100 opacity-50 hover:opacity-100 cursor-pointer" />
           <iframe ref={iframeRef} src="/sandbox.html" style={{ display: "none" }} />
