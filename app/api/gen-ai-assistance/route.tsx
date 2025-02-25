@@ -2,6 +2,8 @@
 import { GenAiCode } from "@/config/AiModel"
 import { NextResponse } from "next/server"
 
+export const runtime = 'edge'
+
 export async function POST(req) {
     const { prompt } = await req.json()
 
