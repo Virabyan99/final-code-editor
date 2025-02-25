@@ -74,6 +74,13 @@ export default function Home() {
     }
   };
 
+  const applyAllFixes = (newCode: string) => {
+    if (codeEditorRef.current) {
+      codeEditorRef.current.setCode(newCode); // Update editor with AI-formatted code
+      setUserCode(newCode); // Sync state
+    }
+  };
+
   // Simulate AI-generated explanations (hardcoded for now)
   const explainError = (message: string) => {
     if (message.includes("is not defined")) {
@@ -112,7 +119,7 @@ export default function Home() {
             onRun={executeCode} 
             onContentChanged={() => setShowConsole(false)} 
             onCodeChange={(code) => setUserCode(code)}
-            ref={codeEditorRef} // Pass the ref to Editor
+            ref={codeEditorRef}
           />
         </div>
         <div ref={dividerRef} className="w-2 bg-gray-300 cursor-ew-resize" onMouseDown={handleMouseDown}></div>
@@ -122,11 +129,7 @@ export default function Home() {
           ) : (
             <ReferencePanel 
               userCode={userCode} 
-              onApplyAllFixes={() => {
-                if (codeEditorRef.current) {
-                  codeEditorRef.current.setCode(userCode); // This should be updated with AI-enhanced code
-                }
-              }} 
+              onApplyAllFixes={applyAllFixes} // Pass updated callback
             />
           )}
           <Moon className="absolute bottom-2 right-2 text-gray-100 opacity-50 hover:opacity-100 cursor-pointer" />
