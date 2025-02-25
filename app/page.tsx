@@ -1,7 +1,8 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
-import { Play, Trash2, Moon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import CodeEditor from "@/components/Editor";
+import ReferencePanel from "@/components/ReferencePanel";
+import { Play, Trash2, Moon } from "lucide-react";
 import Console from "@/components/Console";
 
 export default function Home() {
@@ -13,6 +14,8 @@ export default function Home() {
   const [worker, setWorker] = useState<Worker | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [previousShowConsole, setPreviousShowConsole] = useState(false);
+  const [userCode, setUserCode] = useState("");
+  const codeEditorRef = useRef<{ setCode: (code: string) => void } | null>(null);
 
   // Clear console output when switching from console to reference mode
   useEffect(() => {
@@ -24,7 +27,7 @@ export default function Home() {
   }, [showConsole]);
 
   useEffect(() => {
-    // Create Web Worker (corrected path to public/worker.js)
+    // Create Web Worker
     const newWorker = new Worker(new URL("../public/worker.ts", import.meta.url), { type: "module" });
 
     newWorker.onmessage = (event) => {
@@ -63,13 +66,10 @@ export default function Home() {
 
   // Function to execute code from the editor
   const executeCode = (code: string) => {
-    setShowConsole(true); // Show console panel when "Run" is clicked
-
+    setShowConsole(true);
     if (code.includes("document") || code.includes("window")) {
-      // Send to Iframe if it needs DOM access
       iframeRef.current?.contentWindow?.postMessage({ type: "execute", code }, "*");
     } else {
-      // Otherwise, execute securely in the Web Worker
       worker?.postMessage(code);
     }
   };
@@ -106,23 +106,30 @@ export default function Home() {
 
   return (
     <div className="flex justify-center items-center h-screen w-screen bg-gray-200">
-      {/* Main Editor Container */}
       <div className="w-[99%] h-[98%] bg-gray-300 rounded-lg shadow-lg flex overflow-hidden">
-        {/* Left Panel - Monaco Editor */}
         <div className="relative rounded-r-lg overflow-hidden" style={{ width: `${dividerX}%` }}>
-          <CodeEditor onRun={executeCode} onContentChanged={() => setShowConsole(false)} />
+          <CodeEditor 
+            onRun={executeCode} 
+            onContentChanged={() => setShowConsole(false)} 
+            onCodeChange={(code) => setUserCode(code)}
+            ref={codeEditorRef} // Pass the ref to Editor
+          />
         </div>
-        {/* Draggable Divider */}
         <div ref={dividerRef} className="w-2 bg-gray-300 cursor-ew-resize" onMouseDown={handleMouseDown}></div>
-        {/* Right Panel - Console/Reference */}
         <div className="flex-1 flex flex-col p-4 bg-neutral-900 relative rounded-l-lg">
           {showConsole ? (
             <Console logs={consoleOutput} clearLogs={() => { setConsoleOutput([]); setAiMessages([]); }} aiMessages={aiMessages} />
           ) : (
-            <p className="text-gray-100">Reference Panel</p>
+            <ReferencePanel 
+              userCode={userCode} 
+              onApplyAllFixes={() => {
+                if (codeEditorRef.current) {
+                  codeEditorRef.current.setCode(userCode); // This should be updated with AI-enhanced code
+                }
+              }} 
+            />
           )}
           <Moon className="absolute bottom-2 right-2 text-gray-100 opacity-50 hover:opacity-100 cursor-pointer" />
-          {/* Hidden Iframe for DOM execution */}
           <iframe ref={iframeRef} src="/sandbox.html" style={{ display: "none" }} />
         </div>
       </div>

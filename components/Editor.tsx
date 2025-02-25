@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, forwardRef, ForwardedRef } from "react";
 import Editor, { OnMount, Monaco } from "@monaco-editor/react";
-import  * as monaco from "monaco-editor";
+import * as monaco from "monaco-editor";
 import { saveBreakpoint, getBreakpoints } from "@/utils/historyDB";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -13,19 +13,36 @@ const debounce = (func: Function, wait: number) => {
   };
 };
 
-export default function CodeEditor({
-  onRun,
-  onContentChanged,
-}: {
+interface CodeEditorProps {
   onRun: (code: string) => void;
   onContentChanged: () => void;
-}) {
+  onCodeChange: (code: string) => void;
+}
+
+// Use forwardRef to allow parent to access setCode method
+const CodeEditor = forwardRef((
+  { onRun, onContentChanged, onCodeChange }: CodeEditorProps,
+  ref: ForwardedRef<{ setCode: (code: string) => void }>
+) => {
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null); // Store decoration collection
+  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
   const [editorMounted, setEditorMounted] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [lastSavedCode, setLastSavedCode] = useState<string>("");
+
+  // Expose setCode method to parent through ref
+  useEffect(() => {
+    if (ref) {
+      (ref as any).current = {
+        setCode: (code: string) => {
+          if (monacoRef.current) {
+            monacoRef.current.setValue(code);
+          }
+        }
+      };
+    }
+  }, [ref]);
 
   useEffect(() => {
     if (editorMounted && monacoRef.current) {
@@ -73,7 +90,7 @@ export default function CodeEditor({
       colors: {
         "editor.background": "#1e1e1e",
         "editor.foreground": "#ffffff",
-        "editorCursor.foreground": "#1e1e1e", // Match background for dark theme
+        "editorCursor.foreground": "#1e1e1e",
         "editor.lineHighlightBackground": "#ffffff0f",
         "editor.selectionBackground": "#ffffff33",
         "editorBracketMatch.background": "#ffffff00",
@@ -97,8 +114,8 @@ export default function CodeEditor({
 
     // Debounced cursor update function
     const debouncedUpdateCursor = debounce(() => {
-      updateCustomCursor(monaco); // Use monaco instance passed here
-    }, 16); // Approximately 60 FPS for smooth updates
+      updateCustomCursor(monaco);
+    }, 16);
 
     // Handle content changes (breakpoint saving and cursor update)
     editor.onDidChangeModelContent(() => {
@@ -115,7 +132,7 @@ export default function CodeEditor({
                 const newHistory = [...prev, code];
                 console.log("Updated history:", newHistory);
                 setLastSavedCode(code);
-                setCurrentIndex(newHistory.length - 1); // Point to latest entry
+                setCurrentIndex(newHistory.length - 1);
                 return newHistory;
               });
             })
@@ -123,10 +140,11 @@ export default function CodeEditor({
               console.error("Failed to save breakpoint:", error);
             });
         }
-      }, 1000); // Save after 1 second idle
+      }, 1000);
 
       // Notify parent of content change and update cursor
       onContentChanged();
+      onCodeChange(editor.getValue()); // Update parent with current code
       debouncedUpdateCursor();
     });
 
@@ -157,12 +175,11 @@ export default function CodeEditor({
             range: cursorPosition,
             options: {
               isWholeLine: false,
-              afterContentClassName: "custom-arrow-cursor", // CSS class for arrow
+              afterContentClassName: "custom-arrow-cursor",
             },
           },
         ];
 
-        // Update decorations using the collection
         decorationsRef.current.set(newDecorations);
       }
     }
@@ -175,7 +192,7 @@ export default function CodeEditor({
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
       monacoRef.current.setValue(history[newIndex]);
-      updateCustomCursor(monaco); // Update cursor after navigation
+      updateCustomCursor(monaco);
     }
   };
 
@@ -186,12 +203,12 @@ export default function CodeEditor({
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       monacoRef.current.setValue(history[newIndex]);
-      updateCustomCursor(monaco); // Update cursor after navigation
+      updateCustomCursor(monaco);
     } else if (currentIndex === history.length - 1 && monacoRef.current) {
       console.log("At latest history, clearing editor");
       setCurrentIndex(history.length);
       monacoRef.current.setValue("");
-      updateCustomCursor(monaco); // Update cursor after clearing
+      updateCustomCursor(monaco);
     }
   };
 
@@ -252,7 +269,7 @@ export default function CodeEditor({
           wordWrap: "on",
           smoothScrolling: true,
           cursorBlinking: "smooth",
-          cursorStyle: "block", // Use block style for easier hiding
+          cursorStyle: "block",
           cursorSmoothCaretAnimation: "on",
           padding: { top: 46 },
           scrollBeyondLastLine: false,
@@ -280,4 +297,6 @@ export default function CodeEditor({
       </button>
     </div>
   );
-}
+});
+
+export default CodeEditor;

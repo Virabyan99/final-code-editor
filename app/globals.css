@@ -22,6 +22,18 @@ body {
   
 }
 
+.added {
+  background-color: #aaffaa;
+}
+
+.removed {
+  background-color: #ffaaaa;
+}
+
+.unchanged {
+  background-color: transparent;
+}
+
 @keyframes blink {
   50% {
     opacity: 0;
