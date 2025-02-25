@@ -7,14 +7,25 @@ body {
   margin: 0;
 }
 
-.line-marker::after {
-  content: "↵";
-  color: white;
-  font-size: 18px;
-  pointer-events: none;
-  user-select: none;
-  margin-left: 5px;
-  animation: blink 1s infinite;
+.custom-arrow-cursor::after {
+  content: "↵"; /* Custom arrow symbol */
+  color: #ffffff; /* Match your editor's foreground color */
+  font-size: 14px; /* Match editor font size */
+  animation: blink 1s step-end infinite; /* Blinking effect */
+  margin-right: 3px;
+  margin-left: 9px;
+} 
+
+.monaco-editor .cursor {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 

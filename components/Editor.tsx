@@ -1,11 +1,27 @@
 import { useRef, useEffect, useState } from "react";
 import Editor, { OnMount, Monaco } from "@monaco-editor/react";
-import type * as monaco from "monaco-editor";
+import  * as monaco from "monaco-editor";
 import { saveBreakpoint, getBreakpoints } from "@/utils/historyDB";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: string) => void; onContentChanged: () => void }) {
+// Debounce utility for cursor updates
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(null, args), wait);
+  };
+};
+
+export default function CodeEditor({
+  onRun,
+  onContentChanged,
+}: {
+  onRun: (code: string) => void;
+  onContentChanged: () => void;
+}) {
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null); // Store decoration collection
   const [editorMounted, setEditorMounted] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -33,7 +49,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
     loadHistory();
   }, []);
 
-  // Handle Monaco initialization before the editor mounts
+  // Define custom theme before editor mounts
   const handleBeforeMount = (monaco: Monaco) => {
     monaco.editor.defineTheme("plain", {
       base: "vs-dark",
@@ -57,7 +73,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
       colors: {
         "editor.background": "#1e1e1e",
         "editor.foreground": "#ffffff",
-        "editorCursor.foreground": "#ffffff",
+        "editorCursor.foreground": "#1e1e1e", // Match background for dark theme
         "editor.lineHighlightBackground": "#ffffff0f",
         "editor.selectionBackground": "#ffffff33",
         "editorBracketMatch.background": "#ffffff00",
@@ -67,6 +83,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
     monaco.editor.setTheme("plain");
   };
 
+  // Editor mount handler
   const handleEditorMount: OnMount = (editor, monaco) => {
     monacoRef.current = editor;
     setEditorMounted(true);
@@ -75,13 +92,21 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
 
     let timeout: NodeJS.Timeout | null = null;
 
-    // Save on user change with idle detection and semicolon press
+    // Create decorations collection for custom cursor
+    decorationsRef.current = editor.createDecorationsCollection();
+
+    // Debounced cursor update function
+    const debouncedUpdateCursor = debounce(() => {
+      updateCustomCursor(monaco); // Use monaco instance passed here
+    }, 16); // Approximately 60 FPS for smooth updates
+
+    // Handle content changes (breakpoint saving and cursor update)
     editor.onDidChangeModelContent(() => {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => {
         const code = editor.getValue().trim();
 
-        // Check if the last character is a semicolon or closing brace
+        // Save breakpoint on semicolon or closing brace
         if ((/[;}]\s*$/.test(code) || code.endsWith("}")) && code !== lastSavedCode) {
           console.log("Saving breakpoint after idle:", code);
           saveBreakpoint(code)
@@ -90,7 +115,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
                 const newHistory = [...prev, code];
                 console.log("Updated history:", newHistory);
                 setLastSavedCode(code);
-                setCurrentIndex(newHistory.length - 1); // Point to the latest entry
+                setCurrentIndex(newHistory.length - 1); // Point to latest entry
                 return newHistory;
               });
             })
@@ -98,13 +123,49 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
               console.error("Failed to save breakpoint:", error);
             });
         }
-      }, 1000); // Save after 1 second of idle time
+      }, 1000); // Save after 1 second idle
+
+      // Notify parent of content change and update cursor
+      onContentChanged();
+      debouncedUpdateCursor();
     });
 
-    // Detect content changes for console panel visibility
-    editor.onDidChangeModelContent(() => {
-      onContentChanged(); // Notify parent to hide console panel on user edit
+    // Update cursor on position change with debounce
+    editor.onDidChangeCursorPosition(() => {
+      debouncedUpdateCursor();
     });
+
+    // Set initial custom cursor
+    updateCustomCursor(monaco);
+  };
+
+  // Function to update the custom arrow cursor
+  const updateCustomCursor = (monaco: Monaco) => {
+    if (monacoRef.current && decorationsRef.current) {
+      const editor = monacoRef.current;
+      const position = editor.getPosition();
+      if (position) {
+        const cursorPosition = new monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column
+        );
+
+        const newDecorations = [
+          {
+            range: cursorPosition,
+            options: {
+              isWholeLine: false,
+              afterContentClassName: "custom-arrow-cursor", // CSS class for arrow
+            },
+          },
+        ];
+
+        // Update decorations using the collection
+        decorationsRef.current.set(newDecorations);
+      }
+    }
   };
 
   // Navigate backward in history
@@ -114,6 +175,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
       monacoRef.current.setValue(history[newIndex]);
+      updateCustomCursor(monaco); // Update cursor after navigation
     }
   };
 
@@ -124,13 +186,16 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       monacoRef.current.setValue(history[newIndex]);
+      updateCustomCursor(monaco); // Update cursor after navigation
     } else if (currentIndex === history.length - 1 && monacoRef.current) {
       console.log("At latest history, clearing editor");
       setCurrentIndex(history.length);
       monacoRef.current.setValue("");
+      updateCustomCursor(monaco); // Update cursor after clearing
     }
   };
 
+  // Run code handler
   const runCode = () => {
     if (monacoRef.current) {
       const code = monacoRef.current.getValue();
@@ -187,7 +252,7 @@ export default function CodeEditor({ onRun, onContentChanged }: { onRun: (code: 
           wordWrap: "on",
           smoothScrolling: true,
           cursorBlinking: "smooth",
-          cursorStyle: "line",
+          cursorStyle: "block", // Use block style for easier hiding
           cursorSmoothCaretAnimation: "on",
           padding: { top: 46 },
           scrollBeyondLastLine: false,
